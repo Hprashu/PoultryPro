@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Camera,
   Activity,
@@ -6,17 +7,17 @@ import {
   CheckCircle2,
   Sparkles,
   RefreshCw,
-  PlusCircle,
   FileText,
   ShieldAlert,
-  Search,
-  Upload,
-  ArrowRight,
-  ListFilter
+  ListFilter,
+  Volume2,
+  VolumeX,
+  Phone
 } from 'lucide-react'
 import AppShell from '../components/ui/AppShell.jsx'
 import ImageDropZone from '../components/ui/ImageDropZone.jsx'
 import { useToast } from '../contexts/ToastContext.jsx'
+import { useVoice } from '../hooks/useVoice'
 import { cn } from '../lib/ui'
 
 // Mock symptoms list
@@ -52,13 +53,20 @@ const INITIAL_HISTORY = [
 ]
 
 export default function AIDiseaseScanner() {
+  const { t, i18n } = useTranslation()
   const { showToast } = useToast()
+  const { speak, isSpeaking, cancelSpeak } = useVoice()
   
   // DropZone/File states
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // Camera states
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraStream, setCameraStream] = useState(null)
+  const videoRef = useRef(null)
 
   // Scanning stages
   const [scanning, setScanning] = useState(false)
@@ -69,6 +77,58 @@ export default function AIDiseaseScanner() {
 
   // History state
   const [history, setHistory] = useState(INITIAL_HISTORY)
+
+  // TensorFlow.js integration placeholder check
+  useEffect(() => {
+    // Structured hook placeholder ready to load local or cloud models
+    const loadTFModel = async () => {
+      console.log("TensorFlow.js detection engine ready. Call loadLayersModel('/models/disease_classifier/model.json') on production run.");
+    };
+    loadTFModel();
+  }, []);
+
+  // Camera management
+  const startCamera = async () => {
+    setPreviewUrl(null)
+    setScanResult(null)
+    setCameraActive(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: 640, height: 480 }
+      })
+      setCameraStream(stream)
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+    } catch (err) {
+      console.error("Camera access failed: ", err)
+      showToast("Could not access camera. Please check permissions.", "error")
+      setCameraActive(false)
+    }
+  }
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+    setCameraActive(false)
+  }
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return
+    
+    const canvas = document.createElement('canvas')
+    canvas.width = videoRef.current.videoWidth || 640
+    canvas.height = videoRef.current.videoHeight || 480
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+    
+    const dataUrl = canvas.toDataURL('image/jpeg')
+    setPreviewUrl(dataUrl)
+    stopCamera()
+    showToast("Photo captured successfully!", "success")
+  }
 
   // Handle file select
   const handleFileSelect = (file) => {
@@ -162,7 +222,7 @@ export default function AIDiseaseScanner() {
           condition: finalCondition,
           confidence: `${finalConfidence}%`,
           severity: finalSeverity,
-          status: 'Awaiting Action',
+          status: t('scanner.awaiting_action'),
           imgUrl: previewUrl
         },
         ...prev
@@ -176,10 +236,34 @@ export default function AIDiseaseScanner() {
     setPreviewUrl(null)
     setScanResult(null)
     setSelectedSymptoms([])
+    cancelSpeak()
   }
 
+  // Speech Readout of Diagnostic results
+  const triggerAudioReadout = () => {
+    if (!scanResult) return
+    if (isSpeaking) {
+      cancelSpeak()
+    } else {
+      const diagnosisText = `${t('scanner.condition_detected')}: ${scanResult.condition}. ${t('scanner.confidence')}: ${scanResult.confidence}. ${t('scanner.recommendation')}: ${scanResult.recommendations}`
+      speak(diagnosisText)
+    }
+  }
+
+  // Calculate simulated bounding box coordinates based on condition
+  const boundingBoxes = useMemo(() => {
+    if (!scanResult) return []
+    if (scanResult.condition.includes('Coccidiosis')) {
+      return [{ x: '25%', y: '35%', w: '40%', h: '35%', label: 'Abnormal Excreta (Coccidiosis Marker)' }]
+    } else if (scanResult.condition.includes('Coryza')) {
+      return [{ x: '20%', y: '15%', w: '50%', h: '45%', label: 'Facial Swelling / Coryza Indication' }]
+    } else {
+      return [{ x: '30%', y: '20%', w: '40%', h: '55%', label: 'Physiologically Normal' }]
+    }
+  }, [scanResult])
+
   return (
-    <AppShell title="AI Disease Scanner" subtitle="Computer vision diagnostic scanning, biometric symptom classification, and biosecurity audit registries">
+    <AppShell title={t('scanner.title')} subtitle={t('scanner.subtitle')}>
       
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Workbench Panel (Scanner + Symptoms) */}
@@ -189,18 +273,50 @@ export default function AIDiseaseScanner() {
           <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
             <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
               <Camera className="h-5 w-5 text-emerald-500" />
-              Vision Diagnostic Scanner
+              {t('scanner.title')}
             </h3>
             <p className="text-xs text-surface-500 dark:text-slate-400 mt-0.5 mb-5">
-              Upload high-resolution images of bird droppings or physical symptoms to predict pathogen markers
+              Upload images or use camera to analyze bird symptoms & biosecurity markers.
             </p>
 
-            {!previewUrl ? (
-              <ImageDropZone
-                onFileSelect={handleFileSelect}
-                uploading={uploading}
-                progress={uploadProgress}
-              />
+            {cameraActive ? (
+              <div className="space-y-4">
+                <div className="relative rounded-xl overflow-hidden border border-surface-200/50 dark:border-white/10 aspect-video max-h-[320px] bg-slate-950 flex items-center justify-center">
+                  <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={stopCamera}
+                    className="flex-1 h-10 rounded-xl border border-red-200 text-red-655 hover:bg-red-50 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10 transition text-xs font-extrabold"
+                  >
+                    {t('scanner.camera_close')}
+                  </button>
+                  <button
+                    onClick={capturePhoto}
+                    className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-lg transition flex items-center justify-center gap-1.5"
+                  >
+                    <Camera className="h-4 w-4" />
+                    {t('scanner.camera_capture')}
+                  </button>
+                </div>
+              </div>
+            ) : !previewUrl ? (
+              <div className="space-y-4">
+                <ImageDropZone
+                  onFileSelect={handleFileSelect}
+                  uploading={uploading}
+                  progress={uploadProgress}
+                />
+                
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="w-full h-12 rounded-xl border border-dashed border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-xs flex items-center justify-center gap-2 transition"
+                >
+                  <Camera className="h-5 w-5" />
+                  {t('scanner.camera_btn')}
+                </button>
+              </div>
             ) : (
               <div className="space-y-5">
                 {/* Active scan image preview panel */}
@@ -208,7 +324,7 @@ export default function AIDiseaseScanner() {
                   <img src={previewUrl} alt="Scan preview" className="object-contain h-full w-full" />
                   
                   {scanning && (
-                    <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white">
+                    <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white z-10">
                       <div className="relative h-14 w-14 mb-3">
                         <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20" />
                         <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
@@ -216,6 +332,30 @@ export default function AIDiseaseScanner() {
                       <p className="text-xs font-black uppercase tracking-wider animate-pulse">Running Neural Analytics...</p>
                     </div>
                   )}
+
+                  {/* Bounding Box Visual Overlay */}
+                  {!scanning && scanResult && boundingBoxes.map((box, idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "absolute border-2 rounded animate-pulse pointer-events-none flex flex-col justify-between",
+                        scanResult.severity === 'critical' ? "border-red-500 bg-red-500/10" : scanResult.severity === 'warning' ? "border-amber-500 bg-amber-500/10" : "border-emerald-500 bg-emerald-500/10"
+                      )}
+                      style={{
+                        left: box.x,
+                        top: box.y,
+                        width: box.w,
+                        height: box.h
+                      }}
+                    >
+                      <span className={cn(
+                        "absolute -top-6 left-0 px-1.5 py-0.5 rounded text-[8px] font-black text-white uppercase whitespace-nowrap",
+                        scanResult.severity === 'critical' ? "bg-red-500" : scanResult.severity === 'warning' ? "bg-amber-500" : "bg-emerald-500"
+                      )}>
+                        {box.label} ({scanResult.confidence})
+                      </span>
+                    </div>
+                  ))}
 
                   {/* Laser green scanning line indicator */}
                   {scanning && (
@@ -230,7 +370,7 @@ export default function AIDiseaseScanner() {
                     className="h-10 px-4 rounded-xl border border-surface-200 text-surface-650 hover:bg-surface-50 dark:border-white/10 dark:text-slate-350 dark:hover:bg-white/5 transition text-xs font-extrabold flex items-center gap-1.5"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Reset Workbench
+                    Reset
                   </button>
 
                   <button
@@ -239,7 +379,7 @@ export default function AIDiseaseScanner() {
                     className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-lg shadow-emerald-950/15 transition flex items-center justify-center gap-1.5"
                   >
                     <Sparkles className="h-4 w-4 animate-pulse" />
-                    Analyze Image Diagnostic
+                    {t('scanner.analyze_btn')}
                   </button>
                 </div>
               </div>
@@ -250,10 +390,10 @@ export default function AIDiseaseScanner() {
           <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
             <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
               <ListFilter className="h-5 w-5 text-emerald-500" />
-              Observe Biosecurity Checklist
+              {t('scanner.symptoms_checklist')}
             </h3>
             <p className="text-xs text-surface-500 dark:text-slate-400 mt-0.5 mb-4">
-              Select other clinical observations seen in this bird group to improve diagnostics confidence.
+              {t('scanner.symptoms_desc')}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -290,16 +430,33 @@ export default function AIDiseaseScanner() {
           
           {/* Active Diagnosis Card */}
           <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] space-y-4">
-            <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
-              <Activity className="h-5 w-5 text-emerald-500" />
-              Scanner Diagnostic Report
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
+                <Activity className="h-5 w-5 text-emerald-500" />
+                Diagnostic Report
+              </h3>
+              {scanResult && (
+                <button
+                  onClick={triggerAudioReadout}
+                  className={`grid h-8 w-8 place-items-center rounded-lg border transition ${
+                    isSpeaking 
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-500 animate-pulse'
+                      : 'border-surface-200 bg-white text-surface-500 hover:text-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'
+                  }`}
+                  title="Read diagnostic result aloud"
+                >
+                  <Volume2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             
             {scanResult ? (
               <div className="space-y-4.5">
                 <div className="flex items-center justify-between border-b border-surface-200/50 pb-3 dark:border-white/5">
                   <div>
-                    <span className="text-[9px] font-bold text-surface-450 dark:text-slate-500 uppercase block">Condition Found</span>
+                    <span className="text-[9px] font-bold text-surface-450 dark:text-slate-500 uppercase block">
+                      {t('scanner.condition_detected')}
+                    </span>
                     <span className="text-sm font-black text-surface-900 dark:text-white">{scanResult.condition}</span>
                   </div>
                   <span className={cn(
@@ -310,20 +467,37 @@ export default function AIDiseaseScanner() {
                         ? "bg-amber-500/10 border-amber-500/20 text-amber-650 dark:text-amber-400"
                         : "bg-emerald-500/10 border-emerald-500/20 text-emerald-650 dark:text-emerald-400"
                   )}>
-                    {scanResult.severity.toUpperCase()} ({scanResult.confidence})
+                    {scanResult.severity === 'critical' ? t('severity.critical') : scanResult.severity === 'warning' ? t('severity.medium') : t('severity.low')} ({scanResult.confidence})
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block">AI Recommended Treatment Protocol</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block">
+                    {t('scanner.recommendation')}
+                  </span>
                   <div className="p-3.5 rounded-xl bg-surface-50/50 dark:bg-white/5 border border-surface-200/50 dark:border-white/5 text-xs leading-relaxed text-surface-700 dark:text-slate-300 font-semibold">
                     {scanResult.recommendations}
                   </div>
                 </div>
 
+                {scanResult.severity === 'critical' && (
+                  <a 
+                    href="tel:+919440123456" 
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-650 hover:bg-red-700 text-white font-black text-xs py-3.5 shadow-lg transition"
+                  >
+                    <Phone className="h-4 w-4" />
+                    Call Veterinarian (Dr. Rao)
+                  </a>
+                )}
+
                 <div className="flex gap-2 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-[10px] leading-relaxed text-emerald-700 dark:text-emerald-300 font-bold">
                   <ShieldAlert className="h-5 w-5 shrink-0" />
-                  Please verify critical clinical symptoms with a licensed avian veterinarian prior to administering heavy medication.
+                  <div>
+                    <span className="font-black block uppercase text-emerald-800 dark:text-emerald-200">
+                      {t('vet_disclaimer.title')}
+                    </span>
+                    {t('vet_disclaimer.text')}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -339,7 +513,7 @@ export default function AIDiseaseScanner() {
           <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] space-y-4">
             <h3 className="font-heading text-sm font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2">
               <FileText className="h-5 w-5 text-emerald-500" />
-              Biosecurity Diagnostic Registry
+              {t('scanner.scan_history')}
             </h3>
             
             <div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">

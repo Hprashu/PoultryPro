@@ -1,14 +1,35 @@
 import React, { useState } from 'react'
 import { Bell, Menu, Moon, Search, Sparkles, Sun } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../contexts/ThemeContext.jsx'
 import useNotifications from '../../hooks/useNotifications.js'
 import NotificationPanel from './NotificationPanel.jsx'
 
 export default function HeaderBar({ title, subtitle, onMenuClick, actions, userInitials }) {
+  const { t, i18n } = useTranslation()
   const { isDark, toggleTheme } = useTheme()
   const { notifications, unreadCount, markRead, markAllRead, clearAll } = useNotifications()
   const [panelOpen, setPanelOpen] = useState(false)
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false)
+
+  const languages = [
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    { code: 'te', label: 'తెలుగు', flag: '🇮🇳' },
+    { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+    { code: 'ta', label: 'தமிழ்', flag: '🇮🇳' },
+    { code: 'kn', label: 'ಕನ್ನಡ', flag: '🇮🇳' },
+    { code: 'mr', label: 'मराठी', flag: '🇮🇳' },
+    { code: 'bn', label: 'বাংলা', flag: '🇮🇳' }
+  ]
+
+  const activeLang = languages.find(l => l.code === i18n.language) || languages[0]
+
+  const changeLanguage = (code) => {
+    i18n.changeLanguage(code)
+    localStorage.setItem('poultrypro-language', code)
+    setLangDropdownOpen(false)
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/60 bg-white/72 px-4 py-3 backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/58 sm:px-6">
@@ -44,6 +65,46 @@ export default function HeaderBar({ title, subtitle, onMenuClick, actions, userI
               className="w-40 bg-transparent text-sm text-surface-800 outline-none placeholder:text-surface-400 dark:text-white dark:placeholder:text-slate-500"
             />
           </label>
+          {/* Language Selector Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+              className="flex h-10 items-center gap-1.5 rounded-lg border border-surface-200 bg-white px-2.5 text-xs font-black text-surface-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+              aria-label="Select language"
+            >
+              <span className="text-base leading-none">{activeLang.flag}</span>
+              <span className="hidden sm:inline font-bold">{activeLang.label}</span>
+            </button>
+            <AnimatePresence>
+              {langDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLangDropdownOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 mt-1.5 z-50 w-40 rounded-xl border border-surface-200 bg-white/95 p-1.5 shadow-xl backdrop-blur-lg dark:border-white/10 dark:bg-slate-900/95"
+                  >
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => changeLanguage(lang.code)}
+                        className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 ${
+                          i18n.language === lang.code ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-surface-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <span className="text-sm leading-none">{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
           <button
             type="button"
             onClick={toggleTheme}

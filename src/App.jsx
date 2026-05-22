@@ -21,6 +21,7 @@ const AIDiseaseScanner = React.lazy(() => import('./pages/AIDiseaseScanner.jsx')
 const Settings = React.lazy(() => import('./pages/Settings.jsx'))
 const FeedInventory = React.lazy(() => import('./pages/FeedInventory.jsx'))
 const ImageGallery = React.lazy(() => import('./pages/ImageGallery.jsx'))
+const AboutFounder = React.lazy(() => import('./pages/AboutFounder.jsx'))
 
 // Sleek agritech loader fallback
 function LoadingScreen() {
@@ -58,6 +59,7 @@ export default function App() {
 
                   {/* Operational OS routes */}
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/about-founder" element={<ProtectedRoute><AboutFounder /></ProtectedRoute>} />
                   <Route path="/poultry-manager" element={<ProtectedRoute><FlockManager /></ProtectedRoute>} />
                   <Route path="/health-intel" element={<ProtectedRoute><AIHealthIntelligence /></ProtectedRoute>} />
                   <Route path="/smart-environment" element={<ProtectedRoute><SmartEnvironment /></ProtectedRoute>} />
@@ -73,6 +75,8 @@ export default function App() {
                   <Route path="/images" element={<ProtectedRoute><ImageGallery /></ProtectedRoute>} />
 
                   {/* Legacy Redirects for backward compatibility */}
+                  <Route path="/about" element={<Navigate to="/about-founder" replace />} />
+                  <Route path="/founder" element={<Navigate to="/about-founder" replace />} />
                   <Route path="/flocks" element={<Navigate to="/poultry-manager" replace />} />
                   <Route path="/analytics" element={<Navigate to="/health-intel" replace />} />
                   <Route path="/health" element={<Navigate to="/smart-environment" replace />} />

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Activity,
   AlertTriangle,
@@ -14,6 +15,8 @@ import {
   Wheat,
   Warehouse,
   TrendingUp,
+  Volume2,
+  Rocket
 } from 'lucide-react'
 import {
   Area,
@@ -38,7 +41,9 @@ import AlertCard from '../components/ui/AlertCard.jsx'
 import AnalyticsCard from '../components/ui/AnalyticsCard.jsx'
 import { DashboardSkeleton } from '../components/ui/Skeletons.jsx'
 import useRealtimePoultry from '../hooks/useRealtimePoultry.js'
+import { useVoice } from '../hooks/useVoice'
 import { cn, formatCompactNumber } from '../lib/ui'
+import { useAuth } from '../contexts/AuthContext.jsx'
 
 const MOCK_RECORDS = [
   { id: 'mock-1', breed: 'Leghorn', birdCount: 250, birdAge: 45, birdWeight: 1.8, feedType: 'Layer Mash', vaccinationStatus: 'Up to Date' },
@@ -54,14 +59,6 @@ const tooltipStyle = {
   borderRadius: 8,
   boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
   background: 'rgba(255,255,255,0.96)',
-}
-
-function getFallbackRecords() {
-  const local = window.localStorage.getItem('poultry_records')
-  if (local) return JSON.parse(local)
-
-  window.localStorage.setItem('poultry_records', JSON.stringify(MOCK_RECORDS))
-  return MOCK_RECORDS
 }
 
 function EmptyChart({ label }) {
@@ -83,9 +80,14 @@ function sparklineFrom(records, key, fallback = [16, 24, 18, 32, 28, 36]) {
 }
 
 export default function Dashboard() {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { records, summary, loading, error, isOffline: permissionWarning } = useRealtimePoultry()
   const [shouldRenderCharts, setShouldRenderCharts] = useState(false)
+  const { speak, isSpeaking, cancelSpeak } = useVoice()
+
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Sailada Prasant Kumar'
 
   useEffect(() => {
     if (!loading) {
@@ -211,11 +213,131 @@ export default function Dashboard() {
     return list
   }, [records.length, summary])
 
+  // Translation helpers for UI
+  const localizedCardLabels = {
+    total_birds: { en: 'Total Birds', te: 'మొత్తం కోళ్లు', hi: 'कुल मुर्गियां', ta: 'மொத்த பறவைகள்', kn: 'ಒಟ್ಟು ಕೋಳಿಗಳು', mr: 'एकूण कोंबड्या', bn: 'মোট মুরগি' },
+    healthy_birds: { en: 'Healthy Birds', te: 'ఆరోగ్యకరమైన కోళ్లు', hi: 'स्वस्थ मुर्गियां', ta: 'ஆரோக்கியமான பறவைகள்', kn: 'ಆರೋಗ್ಯಕರ ಕೋಳಿಗಳು', mr: 'निरोगी कोंबड्या', bn: 'সুস্থ মুরগি' },
+    at_risk: { en: 'At-Risk Birds', te: 'ప్రమాదంలో ఉన్న కోళ్లు', hi: 'जोखिम वाली मुर्गियां', ta: 'ஆபத்தில் உள்ள பறவைகள்', kn: 'ಅಪಾಯದಲ್ಲಿರುವ ಕೋಳಿಗಳು', mr: 'धोक्यातील कोंबड्या', bn: 'ঝুঁকিপূর্ণ মুরগি' },
+    mortality: { en: 'Mortality Rate', te: 'మరణాల రేటు', hi: 'मृत्यु दर', ta: 'இறப்பு விகிதம்', kn: 'ಮರಣ ಪ್ರಮಾಣ', mr: 'मृत्यू दर', bn: 'মৃত্যু হার' },
+    revenue: { en: 'Est. Revenue', te: 'రాబడి అంచనా', hi: 'अनुमानित आय', ta: 'மதிப்பிடப்பட்ட வருவாய்', kn: 'ಅಂದಾಜು ಆದಾಯ', mr: 'अंदाजे महसूल', bn: 'আনুমানিক রাজস্ব' },
+    feed: { en: 'Feed Consumption', te: 'మేత వినియోగం', hi: 'चारा खपत', ta: 'தீவன நுகர்வு', kn: 'ಮೇವು ಬಳಕೆ', mr: 'खाद्य वापर', bn: 'খাদ্য ব্যবহার' }
+  }
+
+  const getLabel = (key) => {
+    const currentLang = i18n.language || 'en'
+    return localizedCardLabels[key]?.[currentLang] || localizedCardLabels[key]?.en
+  }
+
+  const getFlockDetailText = () => {
+    const currentLang = i18n.language || 'en'
+    const translations = {
+      en: `${records.length} active flocks`,
+      te: `${records.length} యాక్టివ్ గుంపులు`,
+      hi: `${records.length} सक्रिय झुंड`,
+      ta: `${records.length} செயலில் உள்ள மந்தைகள்`,
+      kn: `${records.length} ಸಕ್ರಿಯ ಹಿಂಡುಗಳು`,
+      mr: `${records.length} कोंबड्यांचे गट`,
+      bn: `${records.length}টি সক্রিয় ফ্লক`
+    }
+    return translations[currentLang] || translations.en
+  }
+
+  const protectedText = useMemo(() => {
+    const currentLang = i18n.language || 'en'
+    const translations = {
+      en: 'Vaccine protected',
+      te: 'టీకాలు వేయబడినవి',
+      hi: 'टीकाकरण सुरक्षित',
+      ta: 'தடுப்பூசி பாதுகாக்கப்பட்டது',
+      kn: 'ಲಸಿಕೆ ರಕ್ಷಿತ',
+      mr: 'लसीकरण सुरक्षित',
+      bn: 'টিকা দেওয়া'
+    }
+    return translations[currentLang] || translations.en
+  }, [i18n.language])
+
+  const overdueText = useMemo(() => {
+    const currentLang = i18n.language || 'en'
+    const translations = {
+      en: 'Vaccine overdue',
+      te: 'టీకా గడువు దాటినది',
+      hi: 'टीकाकरण बकाया',
+      ta: 'தடுப்பூசி காலாவதியானது',
+      kn: 'ಲಸಿಕೆ ಬಾಕಿ',
+      mr: 'लस थकीत',
+      bn: 'টিকা বাকি'
+    }
+    return translations[currentLang] || translations.en
+  }, [i18n.language])
+
+  const lossesText = useMemo(() => {
+    const currentLang = i18n.language || 'en'
+    const translations = {
+      en: 'Estimated losses',
+      te: 'అంచనా నష్టాలు',
+      hi: 'अनुमानित नुकसान',
+      ta: 'மதிப்பிடப்பட்ட இழப்புகள்',
+      kn: 'ಅಂದಾಜು ನಷ್ಟಗಳು',
+      mr: 'अंदाजे नुकसान',
+      bn: 'আনুমানিক ক্ষতি'
+    }
+    return translations[currentLang] || translations.en
+  }, [i18n.language])
+
+  const valuationText = useMemo(() => {
+    const currentLang = i18n.language || 'en'
+    const translations = {
+      en: 'Flock valuation',
+      te: 'గుంపుల మొత్తం విలువ',
+      hi: 'झुंड का मूल्य',
+      ta: 'மந்தையின் மதிப்பு',
+      kn: 'ಹಿಂಡಿನ ಮೌಲ್ಯಮಾಪನ',
+      mr: 'कोंबड्यांचे मूल्यांकन',
+      bn: 'মুরগির মূল্য'
+    }
+    return translations[currentLang] || translations.en
+  }, [i18n.language])
+
+  const dailyIntakeText = useMemo(() => {
+    const currentLang = i18n.language || 'en'
+    const translations = {
+      en: 'Daily intake est.',
+      te: 'రోజువారీ మేత అంచనా',
+      hi: 'दैनिक अनुमानित चारा',
+      ta: 'தினசரி தீவன அளவு',
+      kn: 'ದೈನಂದಿನ ಆಹಾರ ಅಂದಾಜು',
+      mr: 'दैनिक खाद्याचा अंदाज',
+      bn: 'দৈনিক খাদ্যের পরিমাণ'
+    }
+    return translations[currentLang] || translations.en
+  }, [i18n.language])
+
+  const readDashboardStatus = () => {
+    if (isSpeaking) {
+      cancelSpeak()
+      return
+    }
+
+    const currentLang = i18n.language || 'en'
+    const speechText = {
+      en: `Farm Status Report. Total Birds: ${summary.totalBirds}. Healthy Birds: ${summary.healthyBirds}. Mortality Rate: ${summary.mortalityRate.toFixed(2)} percent. Farm health score: ${summary.healthScore} percent. You have ${summary.overdueVaccines} overdue vaccines.`,
+      te: `ఫామ్ రిపోర్ట్. మొత్తం కోళ్లు: ${summary.totalBirds}. ఆరోగ్యంగా ఉన్న కోళ్లు: ${summary.healthyBirds}. మరణాల రేటు: ${summary.mortalityRate.toFixed(2)} శాతం. ఫామ్ ఆరోగ్య స్కోరు: ${summary.healthScore} శాతం. మీకు ${summary.overdueVaccines} వ్యాక్సినేషన్లు అలర్ట్ లో ఉన్నాయి.`,
+      hi: `फार्म रिपोर्ट। कुल मुर्गियां: ${summary.totalBirds}। स्वस्थ मुर्गियां: ${summary.healthyBirds}। मृत्यु दर: ${summary.mortalityRate.toFixed(2)} प्रतिशत। फार्म स्वास्थ्य स्कोर: ${summary.healthScore} प्रतिशत। आपके पास ${summary.overdueVaccines} लंबित टीके हैं।`,
+      ta: `பண்ணை அறிக்கை. மொத்த பறவைகள்: ${summary.totalBirds}. ஆரோக்கியமான பறவைகள்: ${summary.healthyBirds}. இறப்பு விகிதம்: ${summary.mortalityRate.toFixed(2)} சதவீதம். பண்ணை சுகாதார மதிப்பெண்: ${summary.healthScore} சதவீதம்.`,
+      kn: `ಫಾರ್ಮ್ ವರದಿ. ಒಟ್ಟು ಕೋಳಿಗಳು: ${summary.totalBirds}. ಆರೋಗ್ಯಕರ ಕೋಳಿಗಳು: ${summary.healthyBirds}. ಮರಣ ಪ್ರಮಾಣ: ${summary.mortalityRate.toFixed(2)} ಶೇಕಡಾ.`,
+      mr: `फार्म अहवाल. एकूण कोंबड्या: ${summary.totalBirds}. निरोगी कोंबड्या: ${summary.healthyBirds}. मृत्यू दर: ${summary.mortalityRate.toFixed(2)} टक्के.`,
+      bn: `খামার রিপোর্ট। মোট মুরগি: ${summary.totalBirds}। সুস্থ মুরগি: ${summary.healthyBirds}। মৃত্যু হার: ${summary.mortalityRate.toFixed(2)} শতাংশ।`
+    }
+
+    const text = speechText[currentLang] || speechText.en
+    speak(text)
+  }
+
   const statCards = [
     {
-      label: 'Total Birds',
+      label: getLabel('total_birds'),
       value: summary.totalBirds,
-      detail: `${records.length} active flocks`,
+      detail: getFlockDetailText(),
       trend: records.length ? 'Sync' : 'Setup',
       icon: Warehouse,
       accent: 'emerald',
@@ -223,9 +345,9 @@ export default function Dashboard() {
       formatter: (value) => formatCompactNumber(Math.round(value)),
     },
     {
-      label: 'Healthy Birds',
+      label: getLabel('healthy_birds'),
       value: summary.healthyBirds,
-      detail: 'Vaccine protected',
+      detail: protectedText,
       trend: `${summary.totalBirds ? Math.round((summary.healthyBirds / summary.totalBirds) * 100) : 100}%`,
       trendDirection: 'up',
       icon: ShieldCheck,
@@ -234,9 +356,9 @@ export default function Dashboard() {
       formatter: (value) => formatCompactNumber(Math.round(value)),
     },
     {
-      label: 'At-Risk Birds',
+      label: getLabel('at_risk'),
       value: summary.atRiskBirds,
-      detail: 'Vaccine overdue',
+      detail: overdueText,
       trend: summary.atRiskBirds > 0 ? 'Urgent' : 'Optimal',
       trendDirection: summary.atRiskBirds > 0 ? 'down' : 'up',
       icon: AlertTriangle,
@@ -245,9 +367,9 @@ export default function Dashboard() {
       formatter: (value) => formatCompactNumber(Math.round(value)),
     },
     {
-      label: 'Mortality Rate',
+      label: getLabel('mortality'),
       value: summary.mortalityRate,
-      detail: 'Estimated losses',
+      detail: lossesText,
       trend: summary.mortalityRate < 2.5 ? 'Good' : 'Watch',
       trendDirection: summary.mortalityRate < 2.5 ? 'up' : 'down',
       icon: Activity,
@@ -256,9 +378,9 @@ export default function Dashboard() {
       formatter: (value) => `${value.toFixed(2)}%`,
     },
     {
-      label: 'Est. Revenue',
+      label: getLabel('revenue'),
       value: summary.estimatedRevenue,
-      detail: 'Flock valuation',
+      detail: valuationText,
       trend: 'Market FCR',
       icon: CircleGauge,
       accent: 'sky',
@@ -266,9 +388,9 @@ export default function Dashboard() {
       formatter: (value) => `$${formatCompactNumber(Math.round(value))}`,
     },
     {
-      label: 'Feed Consumption',
+      label: getLabel('feed'),
       value: summary.dailyFeedConsumption,
-      detail: 'Daily intake est.',
+      detail: dailyIntakeText,
       trend: 'Feed FCR',
       icon: Wheat,
       accent: 'violet',
@@ -277,10 +399,25 @@ export default function Dashboard() {
     },
   ]
 
+  const headerActions = (
+    <button
+      onClick={readDashboardStatus}
+      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-black transition ${
+        isSpeaking 
+          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-500 animate-pulse'
+          : 'border-surface-200 bg-white text-surface-700 hover:border-emerald-200 hover:text-emerald-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+      }`}
+    >
+      <Volume2 className="h-4 w-4" />
+      <span>{t('voice.read_alerts')}</span>
+    </button>
+  )
+
   return (
     <AppShell
-      title="AI Farm Command Center"
-      subtitle="Real-time flock intelligence, health alerts, and smart production visibility."
+      title={t('nav.dashboard')}
+      subtitle={t('app.subtitle')}
+      actions={headerActions}
     >
       {error && (
         <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/90 p-4 text-red-700 shadow-sm dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-200">
@@ -318,57 +455,60 @@ export default function Dashboard() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
                   <Brain className="h-3.5 w-3.5 animate-pulse" />
-                  PoultryPro AI Operating System
+                  {t('app.title')}
                 </span>
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
-                  Health score {summary.healthScore}%
+                  {t('dashboard.farm_score_title')} {summary.healthScore}%
+                </span>
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-350">
+                  Seed Stage Startup
                 </span>
               </div>
               <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_240px] lg:items-end">
                 <div>
-                  <h2 className="font-heading text-3xl font-black tracking-tight text-surface-950 dark:text-white sm:text-4xl">
-                    Agri-intelligent operations, built for commercial success.
+                  <h2 className="font-heading text-2xl font-black tracking-tight text-surface-950 dark:text-white sm:text-3xl leading-tight">
+                    Welcome to the Command Center, {displayName === 'Farmer' ? 'Sailada Prasant Kumar' : displayName}!
                   </h2>
-                  <p className="mt-3 max-w-3xl text-sm leading-6 text-surface-600 dark:text-slate-300">
-                    Oversee flock distribution, biosafety levels, mortality rates, and feed optimization targets from a single premium, real-time command dashboard.
+                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-surface-650 dark:text-slate-350 font-semibold">
+                    PoultryPro OS is running in startup founder mode. Oversee real-time telemetry, biosecurity compliance, and your regional voice assistant deployments from this investor-ready operational console.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate('/flocks')}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-green-800 px-4 text-sm font-black text-white shadow-lg shadow-emerald-700/25 transition hover:-translate-y-0.5 hover:shadow-emerald-700/35"
+                  onClick={() => navigate('/about-founder')}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-green-800 px-4 text-xs font-black text-white shadow-lg shadow-emerald-700/25 transition hover:-translate-y-0.5 hover:shadow-emerald-700/35"
                 >
-                  <Leaf className="h-4 w-4" />
-                  Manage flocks
+                  <Rocket className="h-4 w-4" />
+                  View Startup Vision
                 </button>
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/70 bg-gradient-to-br from-emerald-950 to-slate-950 p-5 text-white shadow-xl shadow-emerald-950/10 dark:border-white/10">
+            <div className="rounded-lg border border-white/70 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 p-5 text-white shadow-xl shadow-emerald-950/10 dark:border-white/10 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200/65">AI readiness</p>
-                  <p className="mt-1 font-heading text-4xl font-black">{summary.healthScore}%</p>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Startup Pitch Projection</p>
+                  <p className="mt-1 font-heading text-3xl font-black">${formatCompactNumber(summary.estimatedRevenue * 12)} ARR</p>
                 </div>
                 <div className="grid h-12 w-12 place-items-center rounded-lg border border-white/12 bg-white/10">
-                  <Activity className="h-6 w-6 text-emerald-200" />
+                  <TrendingUp className="h-6 w-6 text-emerald-300" />
                 </div>
               </div>
               <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/12">
-                <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-lime-200 to-amber-200" style={{ width: `${summary.healthScore}%` }} />
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-green-500" style={{ width: `78%` }} />
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-white/10 p-3">
-                  <p className="font-heading text-xl font-black">{summary.pendingVaccines}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100/55">Pending</p>
+                <div className="rounded-lg bg-white/5 border border-white/5 p-2">
+                  <p className="font-heading text-sm font-black text-emerald-300">Phase 2</p>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Roadmap</p>
                 </div>
-                <div className="rounded-lg bg-white/10 p-3">
-                  <p className="font-heading text-xl font-black">{summary.overdueVaccines}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100/55">Overdue</p>
+                <div className="rounded-lg bg-white/5 border border-white/5 p-2">
+                  <p className="font-heading text-sm font-black text-emerald-300">Seed</p>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">Stage</p>
                 </div>
-                <div className="rounded-lg bg-white/10 p-3">
-                  <p className="font-heading text-xl font-black">{summary.feedRecords}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100/55">Feed logs</p>
+                <div className="rounded-lg bg-white/5 border border-white/5 p-2">
+                  <p className="font-heading text-sm font-black text-emerald-300">96.4%</p>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">AI Accuracy</p>
                 </div>
               </div>
             </div>
@@ -386,7 +526,7 @@ export default function Dashboard() {
             {/* Growth Intelligence Area Chart */}
             <AnalyticsCard
               className="xl:col-span-2"
-              title="Growth Intelligence"
+              title={t('dashboard.growth_chart')}
               subtitle="Weight curves relative to flock count overlays"
               icon={ChartSpline}
               metric={summary.avgWeight ? `${summary.avgWeight.toFixed(2)} kg` : '--'}
@@ -400,8 +540,8 @@ export default function Dashboard() {
                     <AreaChart data={growthData} margin={{ top: 12, right: 12, left: -22, bottom: 0 }}>
                       <defs>
                         <linearGradient id="growthWeightGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
+                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                           <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 8" className="dark:stroke-white/5" />
@@ -420,7 +560,7 @@ export default function Dashboard() {
 
             {/* Vaccination Progress Pie Chart */}
             <AnalyticsCard
-              title="Vaccination Status"
+              title={t('dashboard.vaccination_progress')}
               subtitle="Breakdown of biosecurity schedules"
               icon={ShieldCheck}
               metric={`${summary.protectedFlocks || 0} flocks`}
@@ -460,7 +600,7 @@ export default function Dashboard() {
           <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Revenue Area Chart */}
             <AnalyticsCard
-              title="Est. Revenue Analytics"
+              title={t('dashboard.value_projection')}
               subtitle="Sales evaluation by age cohorts"
               icon={CircleGauge}
               metric={`$${formatCompactNumber(Math.round(summary.estimatedRevenue))}`}
@@ -493,7 +633,7 @@ export default function Dashboard() {
 
             {/* Feed Distribution Bar Chart */}
             <AnalyticsCard
-              title="Feed Consumption Mix"
+              title={t('dashboard.feed_chart')}
               subtitle="Population active on feed types"
               icon={Wheat}
               metric={`${records.filter(r => r.feedType).length} logs`}
@@ -524,7 +664,7 @@ export default function Dashboard() {
 
             {/* Mortality Trend Line Chart */}
             <AnalyticsCard
-              title="Mortality Loss Curve"
+              title={t('dashboard.mortality_analytics')}
               subtitle="Attrition counts vs safety threshold"
               icon={Activity}
               metric={`${Math.round(summary.totalBirds * (summary.mortalityRate / 100))} birds`}
@@ -576,7 +716,7 @@ export default function Dashboard() {
             </AnalyticsCard>
 
             {/* AI Insights & Alerts Panel */}
-            <AnalyticsCard title="Smart AI Notifications" subtitle="Prioritized flock alerts & updates" icon={Brain}>
+            <AnalyticsCard title={t('dashboard.active_alerts')} subtitle="Prioritized flock alerts & updates" icon={Brain}>
               <div className="space-y-3">
                 {insights.map((insight, index) => (
                   <AlertCard key={insight.id} {...insight} delay={index * 0.06} />

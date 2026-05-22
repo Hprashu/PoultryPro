@@ -1,0 +1,104 @@
+{
+  "app": {
+    "title": "PoultryPro OS",
+    "subtitle": "Agritech operations, AI diagnostics, & smart telemetry",
+    "logout": "Sign out",
+    "onboarding_active": "First time? Run Setup Wizard"
+  },
+  "nav": {
+    "dashboard": "Command Center",
+    "poultry_manager": "Poultry Manager",
+    "smart_environment": "Smart Environment",
+    "smart_scheduling": "Smart Scheduling",
+    "health_intel": "AI Health Intel",
+    "disease_scanner": "AI Disease Scanner",
+    "business_analytics": "Business Analytics",
+    "marketplace": "Farm Marketplace",
+    "automation": "Smart Automation",
+    "settings": "User & Farm Settings",
+    "about_founder": "About Founder",
+    "feed": "Feed Inventory",
+    "images": "Image Gallery"
+  },
+  "onboarding": {
+    "title": "Welcome to PoultryPro OS",
+    "subtitle": "Let's configure your smart assistant for your farm.",
+    "select_language": "Choose your Language",
+    "select_language_desc": "Select the language you want to speak and read.",
+    "voice_setup": "Voice Assistant Activated",
+    "voice_setup_desc": "Speak into the microphone. PoultryPro will listen and reply in your language.",
+    "voice_test_btn": "Test Voice Output",
+    "voice_test_playing": "Playing sample...",
+    "voice_test_success": "Hello! I am your AI Poultry Assistant.",
+    "navigation_guide": "Easy Navigation",
+    "navigation_guide_desc": "Use the bottom bar on your mobile and large buttons to navigate without typing.",
+    "get_started": "Get Started",
+    "next": "Next",
+    "back": "Back",
+    "skip": "Skip Tutorial"
+  },
+  "voice": {
+    "listening": "Listening...",
+    "mic_permission_denied": "Microphone permission denied. Please enable microphone access in settings.",
+    "speak_now": "Tap the mic and speak...",
+    "error_speech": "Could not recognize speech. Please try again.",
+    "unsupported": "Web Speech API is not supported in this browser.",
+    "assistant_title": "AI Poultry Assistant",
+    "ask_anything": "Ask anything about symptoms, vaccination, feed, or weather...",
+    "read_alerts": "Read active alerts out loud",
+    "play": "Play Voice Response",
+    "pause": "Pause Voice",
+    "stop": "Stop Voice",
+    "speed": "Voice Speed",
+    "severity": "Severity"
+  },
+  "severity": {
+    "low": "Low Risk",
+    "medium": "Medium Risk",
+    "critical": "Critical Alarm"
+  },
+  "vet_disclaimer": {
+    "title": "VETERINARY DISCLAIMER",
+    "text": "This AI recommendation is an automated guidance model based on biometric indicators. Always consult a licensed veterinarian before administering heavy medication to your flock."
+  },
+  "dashboard": {
+    "performance_score": "Farm Performance Score",
+    "biomass_asset": "Estimated Biomass Asset",
+    "value_projection": "30d Value Projection",
+    "fcr_ratio": "Avg Feed Conversion (FCR)",
+    "active_alerts": "Active Farm Alerts",
+    "no_alerts": "All systems operating optimally. No alerts.",
+    "growth_chart": "Daily Growth Metrics",
+    "feed_chart": "Feed Consumption Index",
+    "vaccination_progress": "Vaccination Progress",
+    "mortality_analytics": "Mortality & Health Index",
+    "farm_score_title": "AI Farm Health Score",
+    "farm_score_desc": "Audited from climate sensors and mortalities."
+  },
+  "scanner": {
+    "title": "AI Disease Scanner",
+    "subtitle": "Identify bird diseases from drop images or symptoms",
+    "upload_btn": "Take Photo or Upload Image",
+    "analyze_btn": "Analyze Image & Run Diagnostic",
+    "camera_btn": "Open Camera / Take Photo",
+    "camera_close": "Close Camera",
+    "camera_capture": "Capture Photo",
+    "scanning": "Scanning image...",
+    "condition_detected": "Likely Condition Detected",
+    "confidence": "Detection Confidence",
+    "symptoms_checklist": "Symptom Observation Checklist",
+    "symptoms_desc": "Select symptoms you notice to improve scan accuracy.",
+    "recommendation": "AI Recommended Protocol",
+    "scan_history": "Scan History Registry",
+    "awaiting_action": "Awaiting Action"
+  },
+  "settings": {
+    "language_settings": "Language Settings",
+    "voice_settings": "Voice Assistant Settings",
+    "voice_speed": "Speech Playback Speed",
+    "voice_volume": "Speech Playback Volume",
+    "test_speech_btn": "Test Speech Settings",
+    "save_settings": "Save Settings",
+    "settings_saved": "Settings saved successfully!"
+  }
+}

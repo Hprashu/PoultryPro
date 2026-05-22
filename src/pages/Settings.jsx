@@ -15,18 +15,24 @@ import {
   Upload,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Volume2,
+  Play,
+  Square
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import AppShell from '../components/ui/AppShell.jsx'
 import { useToast } from '../contexts/ToastContext.jsx'
 import { useTheme } from '../contexts/ThemeContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { speakText, stopSpeaking } from '../voice/voiceService'
 import { cn } from '../lib/ui'
 
 export default function Settings() {
   const { showToast } = useToast()
   const { theme, toggleTheme, isDark } = useTheme()
   const { user } = useAuth()
+  const { t, i18n } = useTranslation()
 
   const [activeTab, setActiveTab] = useState('profile')
 
@@ -57,43 +63,103 @@ export default function Settings() {
     enableSms: true,
   })
 
+  // Speech Configuration States
+  const [speechRate, setSpeechRate] = useState(() => {
+    return parseFloat(localStorage.getItem('poultrypro-speech-rate')) || 0.9
+  })
+  const [speechVolume, setSpeechVolume] = useState(() => {
+    return parseFloat(localStorage.getItem('poultrypro-speech-volume')) || 1.0
+  })
+  const [isTestSpeaking, setIsTestSpeaking] = useState(false)
+
+  const languages = [
+    { code: 'en', label: 'English', flag: '🇬🇧' },
+    { code: 'te', label: 'తెలుగు', flag: '🇮🇳' },
+    { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+    { code: 'ta', label: 'தமிழ்', flag: '🇮🇳' },
+    { code: 'kn', label: 'ಕನ್ನಡ', flag: '🇮🇳' },
+    { code: 'mr', label: 'मराठी', flag: '🇮🇳' },
+    { code: 'bn', label: 'বাংলা', flag: '🇮🇳' }
+  ]
+
+  const changeLanguage = (code) => {
+    i18n.changeLanguage(code)
+    localStorage.setItem('poultrypro-language', code)
+    showToast(t('settings.settings_saved', 'Language updated successfully!'), 'success')
+  }
+
+  const handleTestSpeech = async () => {
+    if (isTestSpeaking) {
+      stopSpeaking()
+      setIsTestSpeaking(false)
+      return
+    }
+    
+    setIsTestSpeaking(true)
+    try {
+      const testText = t('onboarding.voice_test_success', 'Hello! I am your AI Poultry Assistant.')
+      await speakText(testText, i18n.language, {
+        rate: speechRate,
+        volume: speechVolume
+      })
+    } catch (err) {
+      console.error(err)
+      showToast('Speech test failed.', 'error')
+    } finally {
+      setIsTestSpeaking(false)
+    }
+  }
+
   const handleSaveProfile = (e) => {
     e.preventDefault()
-    showToast('Profile settings updated successfully!', 'success')
+    showToast(t('settings.profile_saved', 'Profile settings updated successfully!'), 'success')
   }
 
   const handleSaveFarm = (e) => {
     e.preventDefault()
-    showToast('Farm configuration synced to cloud database.', 'success')
+    showToast(t('settings.farm_saved', 'Farm configuration synced to cloud database.'), 'success')
   }
 
   const handleSaveAlerts = (e) => {
     e.preventDefault()
-    showToast('Alarm thresholds and communication settings saved.', 'success')
+    showToast(t('settings.alerts_saved', 'Alarm thresholds and communication settings saved.'), 'success')
+  }
+
+  const handleSaveSpeech = (e) => {
+    e.preventDefault()
+    localStorage.setItem('poultrypro-speech-rate', speechRate.toString())
+    localStorage.setItem('poultrypro-speech-volume', speechVolume.toString())
+    showToast(t('settings.settings_saved', 'Settings saved successfully!'), 'success')
   }
 
   const handleDatabaseBackup = () => {
-    showToast('Initiating secure cloud database backup...', 'info')
+    showToast(t('settings.backup_initiating', 'Initiating secure cloud database backup...'), 'info')
     setTimeout(() => {
-      showToast('Database backup successfully generated (agrios_backup_2026.sql)', 'success')
+      showToast(t('settings.backup_success', 'Database backup successfully generated (agrios_backup_2026.sql)'), 'success')
     }, 2000)
   }
 
   const tabs = [
-    { id: 'profile', label: 'Farmer Profile', icon: User },
-    { id: 'farm', label: 'Farm Configuration', icon: Building },
-    { id: 'alerts', label: 'Siren & Alarms Config', icon: Bell },
-    { id: 'security', label: 'Cloud & Database', icon: Database },
+    { id: 'profile', label: t('settings.profile', 'Farmer Profile'), icon: User },
+    { id: 'farm', label: t('settings.farm', 'Farm Configuration'), icon: Building },
+    { id: 'alerts', label: t('settings.alerts', 'Siren & Alarms Config'), icon: Bell },
+    { id: 'language', label: t('settings.language_settings', 'Language & Speech'), icon: Globe },
+    { id: 'security', label: t('settings.security', 'Cloud & Database'), icon: Database },
   ]
 
   return (
-    <AppShell title="User & Farm Settings" subtitle="Modify user credentials, adjust microclimate alarm sirens, change display themes, and manage secure cloud backups">
+    <AppShell 
+      title={t('settings.title', 'User & Farm Settings')} 
+      subtitle={t('settings.subtitle', 'Modify user credentials, adjust microclimate alarm sirens, change display themes, and manage secure cloud backups')}
+    >
       
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         
         {/* Left Side Tab Navigation */}
         <div className="rounded-2xl border border-white/70 bg-white/70 p-4.5 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] space-y-1.5 h-fit">
-          <span className="text-[10px] font-black uppercase tracking-wider text-surface-400 dark:text-slate-500 px-3.5 block mb-2">Settings Sections</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-surface-400 dark:text-slate-500 px-3.5 block mb-2">
+            {t('settings.sections_header', 'Settings Sections')}
+          </span>
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -120,7 +186,7 @@ export default function Settings() {
           <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-white/45 dark:bg-white/[0.02] border border-surface-200/50 dark:border-white/5">
             <span className="text-xs font-bold text-surface-650 dark:text-slate-350 flex items-center gap-2">
               {isDark ? <Moon className="h-4 w-4 text-emerald-500" /> : <Sun className="h-4 w-4 text-orange-500" />}
-              Dark Theme
+              {t('settings.dark_theme', 'Dark Theme')}
             </span>
             <button
               onClick={toggleTheme}
@@ -144,7 +210,7 @@ export default function Settings() {
             <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] animate-in fade-in slide-in-from-right-3 duration-250">
               <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2 border-b border-surface-200/50 pb-4 dark:border-white/5 mb-5">
                 <User className="h-5 w-5 text-emerald-500" />
-                Farmer Profile Credentials
+                {t('settings.profile_header', 'Farmer Profile Credentials')}
               </h3>
 
               <form onSubmit={handleSaveProfile} className="space-y-5">
@@ -155,22 +221,28 @@ export default function Settings() {
                     {profileForm.displayName.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider">Avatar Matrix</h4>
-                    <p className="text-[10px] text-surface-500 dark:text-slate-400 mt-0.5">Custom avatars sync across devices</p>
+                    <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider">
+                      {t('settings.avatar_header', 'Avatar Matrix')}
+                    </h4>
+                    <p className="text-[10px] text-surface-500 dark:text-slate-400 mt-0.5">
+                      {t('settings.avatar_desc', 'Custom avatars sync across devices')}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => showToast('Avatar upload available in Cloud premium tier.', 'info')}
+                      onClick={() => showToast(t('settings.avatar_premium_msg', 'Avatar upload available in Cloud premium tier.'), 'info')}
                       className="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-450 hover:underline flex items-center gap-1"
                     >
                       <Upload className="h-3.5 w-3.5" />
-                      Upload Photo
+                      {t('settings.avatar_upload', 'Upload Photo')}
                     </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Display Name</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.display_name', 'Display Name')}
+                    </label>
                     <div className="relative">
                       <User className="absolute left-3 top-2.5 h-4 w-4 text-surface-400 dark:text-slate-500" />
                       <input
@@ -184,7 +256,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Registered Phone</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.phone', 'Registered Phone')}
+                    </label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-2.5 h-4 w-4 text-surface-400 dark:text-slate-500" />
                       <input
@@ -198,7 +272,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Email (Account ID)</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.email', 'Email (Account ID)')}
+                    </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-2.5 h-4 w-4 text-surface-400 dark:text-slate-500" />
                       <input
@@ -211,7 +287,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Farm Location</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.location', 'Farm Location')}
+                    </label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-surface-400 dark:text-slate-500" />
                       <input
@@ -231,7 +309,7 @@ export default function Settings() {
                     className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/15"
                   >
                     <Save className="h-4 w-4" />
-                    Save Profile Changes
+                    {t('settings.save_profile', 'Save Profile Changes')}
                   </button>
                 </div>
               </form>
@@ -243,13 +321,15 @@ export default function Settings() {
             <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] animate-in fade-in slide-in-from-right-3 duration-250">
               <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2 border-b border-surface-200/50 pb-4 dark:border-white/5 mb-5">
                 <Building className="h-5 w-5 text-emerald-500" />
-                Sheds & Livestock Configuration
+                {t('settings.farm_header', 'Sheds & Livestock Configuration')}
               </h3>
 
               <form onSubmit={handleSaveFarm} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Company / Farm Entity Name</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.farm_name', 'Company / Farm Entity Name')}
+                    </label>
                     <input
                       type="text"
                       required
@@ -260,7 +340,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Primary Breed Default</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.primary_breed', 'Primary Breed Default')}
+                    </label>
                     <select
                       value={farmForm.primaryBreed}
                       onChange={(e) => setFarmForm(prev => ({ ...prev, primaryBreed: e.target.value }))}
@@ -274,7 +356,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Total Active Sheds Count</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.total_sheds', 'Total Active Sheds Count')}
+                    </label>
                     <input
                       type="number"
                       required
@@ -285,7 +369,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Maximum Farm Flock Capacity (Birds)</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.max_capacity', 'Maximum Farm Flock Capacity (Birds)')}
+                    </label>
                     <input
                       type="number"
                       required
@@ -296,7 +382,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Low Feed Alert Threshold (Bags)</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.low_feed_threshold', 'Low Feed Alert Threshold (Bags)')}
+                    </label>
                     <input
                       type="number"
                       required
@@ -313,7 +401,7 @@ export default function Settings() {
                     className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/15"
                   >
                     <Save className="h-4 w-4" />
-                    Save Farm Settings
+                    {t('settings.save_farm', 'Save Farm Settings')}
                   </button>
                 </div>
               </form>
@@ -325,14 +413,16 @@ export default function Settings() {
             <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] animate-in fade-in slide-in-from-right-3 duration-250">
               <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2 border-b border-surface-200/50 pb-4 dark:border-white/5 mb-5">
                 <Bell className="h-5 w-5 text-emerald-500" />
-                Safety Siren & Threshold Configurations
+                {t('settings.siren_header', 'Safety Siren & Threshold Configurations')}
               </h3>
 
               <form onSubmit={handleSaveAlerts} className="space-y-6">
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Min Temp Warning (°C)</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.min_temp', 'Min Temp Warning (°C)')}
+                    </label>
                     <input
                       type="number"
                       step="0.1"
@@ -344,7 +434,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Max Temp Warning (°C)</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.max_temp', 'Max Temp Warning (°C)')}
+                    </label>
                     <input
                       type="number"
                       step="0.1"
@@ -356,7 +448,9 @@ export default function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">Max Ammonia Warning (ppm)</label>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                      {t('settings.max_ammonia', 'Max Ammonia Warning (ppm)')}
+                    </label>
                     <input
                       type="number"
                       step="0.1"
@@ -369,12 +463,14 @@ export default function Settings() {
                 </div>
 
                 <div className="space-y-3 pt-3 border-t border-surface-200/50 dark:border-white/5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-surface-555 dark:text-slate-450 block">Notification channels</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-surface-555 dark:text-slate-450 block">
+                    {t('settings.notification_channels', 'Notification channels')}
+                  </span>
                   
                   {/* Push Toggler */}
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-xs font-bold text-surface-650 dark:text-slate-350">
-                      Browser In-App Banner Warnings
+                      {t('settings.browser_warnings', 'Browser In-App Banner Warnings')}
                     </span>
                     <button
                       type="button"
@@ -391,7 +487,7 @@ export default function Settings() {
                   {/* SMS Toggler */}
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-xs font-bold text-surface-650 dark:text-slate-350">
-                      Emergency SMS Dispatch to Farm Managers
+                      {t('settings.sms_dispatch', 'Emergency SMS Dispatch to Farm Managers')}
                     </span>
                     <button
                       type="button"
@@ -412,10 +508,150 @@ export default function Settings() {
                     className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/15"
                   >
                     <Save className="h-4 w-4" />
-                    Save Siren Settings
+                    {t('settings.save_siren', 'Save Siren Settings')}
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* Language & Speech Panel */}
+          {activeTab === 'language' && (
+            <div className="rounded-2xl border border-white/70 bg-white/70 p-6 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055] animate-in fade-in slide-in-from-right-3 duration-250">
+              <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2 border-b border-surface-200/50 pb-4 dark:border-white/5 mb-5">
+                <Globe className="h-5 w-5 text-emerald-500" />
+                {t('settings.language_settings', 'Language Settings')}
+              </h3>
+
+              <div className="space-y-6">
+                {/* Language Selection */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400 block mb-1">
+                    {t('onboarding.select_language', 'Choose your Language')}
+                  </label>
+                  <p className="text-xs text-surface-555 dark:text-slate-400 mb-3">
+                    {t('onboarding.select_language_desc', 'Select the language you want to speak and read.')}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => changeLanguage(lang.code)}
+                        className={cn(
+                          "flex items-center gap-2.5 p-3 rounded-xl border text-xs font-black transition text-left",
+                          i18n.language === lang.code
+                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 shadow-sm"
+                            : "border-surface-200 bg-white hover:bg-surface-50 dark:border-white/5 dark:bg-slate-950 dark:hover:bg-white/5 text-surface-700 dark:text-slate-350"
+                        )}
+                      >
+                        <span className="text-sm leading-none">{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-surface-200/50 dark:border-white/5 my-6" />
+
+                {/* Voice Synthesis Settings */}
+                <div>
+                  <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Volume2 className="h-4 w-4 text-emerald-500" />
+                    {t('settings.voice_settings', 'Voice Assistant Settings')}
+                  </h4>
+                  
+                  <form onSubmit={handleSaveSpeech} className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Speech Rate Slider */}
+                      <div>
+                        <div className="flex justify-between mb-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400">
+                            {t('settings.voice_speed', 'Speech Playback Speed')}
+                          </label>
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-450">
+                            {speechRate.toFixed(1)}x
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="2.0"
+                          step="0.1"
+                          value={speechRate}
+                          onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                          className="w-full accent-emerald-500 bg-surface-200 dark:bg-white/10 rounded-lg appearance-none h-1.5 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-surface-400 dark:text-slate-500 mt-1">
+                          <span>0.5x ({t('voice.slow', 'Slow')})</span>
+                          <span>1.0x ({t('voice.normal', 'Normal')})</span>
+                          <span>2.0x ({t('voice.fast', 'Fast')})</span>
+                        </div>
+                      </div>
+
+                      {/* Speech Volume Slider */}
+                      <div>
+                        <div className="flex justify-between mb-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-surface-500 dark:text-slate-400">
+                            {t('settings.voice_volume', 'Speech Playback Volume')}
+                          </label>
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-450">
+                            {Math.round(speechVolume * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.0"
+                          max="1.0"
+                          step="0.1"
+                          value={speechVolume}
+                          onChange={(e) => setSpeechVolume(parseFloat(e.target.value))}
+                          className="w-full accent-emerald-500 bg-surface-200 dark:bg-white/10 rounded-lg appearance-none h-1.5 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-surface-400 dark:text-slate-500 mt-1">
+                          <span>0% ({t('voice.muted', 'Muted')})</span>
+                          <span>100% ({t('voice.maximum', 'Max')})</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-surface-200/50 dark:border-white/5">
+                      {/* Speech Test Button */}
+                      <button
+                        type="button"
+                        onClick={handleTestSpeech}
+                        className={cn(
+                          "h-10 px-4 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow",
+                          isTestSpeaking
+                            ? "bg-red-500 hover:bg-red-650 text-white"
+                            : "bg-surface-200 hover:bg-surface-250 text-surface-800 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white"
+                        )}
+                      >
+                        {isTestSpeaking ? (
+                          <>
+                            <Square className="h-4 w-4 fill-current" />
+                            {t('voice.stop', 'Stop Voice')}
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 fill-current" />
+                            {t('settings.test_speech_btn', 'Test Speech Settings')}
+                          </>
+                        )}
+                      </button>
+
+                      {/* Save Button */}
+                      <button
+                        type="submit"
+                        className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-950/15"
+                      >
+                        <Save className="h-4 w-4" />
+                        {t('settings.save_settings', 'Save Settings')}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
             </div>
           )}
 
@@ -425,10 +661,10 @@ export default function Settings() {
               <div>
                 <h3 className="font-heading text-base font-black tracking-tight text-surface-950 dark:text-white flex items-center gap-2 border-b border-surface-200/50 pb-4 dark:border-white/5">
                   <Database className="h-5 w-5 text-emerald-500" />
-                  Cloud State & Local Registry Backup
+                  {t('settings.db_header', 'Cloud State & Local Registry Backup')}
                 </h3>
                 <p className="text-xs text-surface-500 dark:text-slate-400 mt-1">
-                  Manage the state machine databases, download configurations, or reset registry states securely.
+                  {t('settings.db_desc', 'Manage the state machine databases, download configurations, or reset registry states securely.')}
                 </p>
               </div>
 
@@ -437,35 +673,47 @@ export default function Settings() {
                 {/* Backup Module */}
                 <div className="p-4.5 rounded-2xl border border-surface-200/60 dark:border-white/5 bg-white/45 dark:bg-white/[0.02] flex flex-col justify-between h-44">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-450 block">Production Backup</span>
-                    <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider">Secure SQL Snapshot</h4>
-                    <p className="text-[11px] text-surface-555 dark:text-slate-400 leading-normal font-semibold">Generate a download package enclosing flock details, feeding ledger, and automated rule provisions.</p>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-450 block">
+                      {t('settings.production_backup', 'Production Backup')}
+                    </span>
+                    <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider">
+                      {t('settings.sql_snapshot', 'Secure SQL Snapshot')}
+                    </h4>
+                    <p className="text-[11px] text-surface-555 dark:text-slate-400 leading-normal font-semibold">
+                      {t('settings.sql_desc', 'Generate a download package enclosing flock details, feeding ledger, and automated rule provisions.')}
+                    </p>
                   </div>
                   <button
                     onClick={handleDatabaseBackup}
                     className="w-full h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow"
                   >
                     <Database className="h-4 w-4" />
-                    Back Up Registry
+                    {t('settings.backup_registry', 'Back Up Registry')}
                   </button>
                 </div>
 
                 {/* Reset Module */}
                 <div className="p-4.5 rounded-2xl border border-surface-200/60 dark:border-white/5 bg-white/45 dark:bg-white/[0.02] flex flex-col justify-between h-44">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-red-550 block">Safety Restrict</span>
-                    <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider">Purge Local Storage</h4>
-                    <p className="text-[11px] text-surface-555 dark:text-slate-400 leading-normal font-semibold">Delete cached local states and cookies. Does not touch live Firebase production data registries.</p>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-red-550 block">
+                      {t('settings.safety_restrict', 'Safety Restrict')}
+                    </span>
+                    <h4 className="text-xs font-black text-surface-950 dark:text-white uppercase tracking-wider">
+                      {t('settings.purge_cache', 'Purge Local Storage')}
+                    </h4>
+                    <p className="text-[11px] text-surface-555 dark:text-slate-400 leading-normal font-semibold">
+                      {t('settings.purge_desc', 'Delete cached local states and cookies. Does not touch live Firebase production data registries.')}
+                    </p>
                   </div>
                   <button
                     onClick={() => {
                       window.localStorage.clear()
-                      showToast('Local settings and theme cache purged.', 'info')
+                      showToast(t('settings.purge_success_msg', 'Local settings and theme cache purged.'), 'info')
                     }}
                     className="w-full h-9 rounded-xl bg-red-500 hover:bg-red-650 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow"
                   >
                     <Lock className="h-4 w-4" />
-                    Purge Local Cache
+                    {t('settings.purge_button', 'Purge Local Cache')}
                   </button>
                 </div>
 
@@ -478,3 +726,4 @@ export default function Settings() {
     </AppShell>
   )
 }
+

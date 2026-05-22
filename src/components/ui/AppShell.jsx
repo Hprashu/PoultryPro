@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
   House,
   Warehouse,
@@ -18,6 +19,7 @@ import {
   PanelLeftOpen,
   ShieldCheck,
   Search,
+  User,
 } from 'lucide-react'
 import { auth, signOut } from '../../firebase'
 import { useAuth } from '../../contexts/AuthContext.jsx'
@@ -28,11 +30,14 @@ import { cn, getInitials } from '../../lib/ui'
 import BrandMark from './BrandMark.jsx'
 import HeaderBar from './HeaderBar.jsx'
 import SidebarItem from './SidebarItem.jsx'
+import AIChatbotWidget from '../../chatbot/AIChatbotWidget.jsx'
+import FarmerOnboarding from '../onboarding/FarmerOnboarding.jsx'
 
 export default function AppShell({ title, subtitle, actions, children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
+  const { t } = useTranslation()
   
   // Realtime notification & alert hooks for badges
   const { unreadCount } = useNotifications()
@@ -49,6 +54,14 @@ export default function AppShell({ title, subtitle, actions, children }) {
   })
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 1024)
   const [searchQuery, setSearchQuery] = useState('')
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+
+  useEffect(() => {
+    const isCompleted = window.localStorage.getItem('poultrypro-onboarding-complete') === 'true'
+    if (!isCompleted) {
+      setOnboardingOpen(true)
+    }
+  }, [])
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)')
@@ -70,34 +83,35 @@ export default function AppShell({ title, subtitle, actions, children }) {
     {
       title: 'Operations',
       items: [
-        { icon: House, label: 'Command Center', path: '/dashboard', badge: unreadCount },
-        { icon: Warehouse, label: 'Poultry Manager', path: '/poultry-manager' },
-        { icon: ThermometerSun, label: 'Smart Environment', path: '/smart-environment', badge: alertsGrouped?.critical?.length || 0 },
-        { icon: CalendarClock, label: 'Smart Scheduling', path: '/smart-scheduling', badge: pendingVaccinesCount },
+        { icon: House, label: t('nav.dashboard'), path: '/dashboard', badge: unreadCount },
+        { icon: Warehouse, label: t('nav.poultry_manager'), path: '/poultry-manager' },
+        { icon: ThermometerSun, label: t('nav.smart_environment'), path: '/smart-environment', badge: alertsGrouped?.critical?.length || 0 },
+        { icon: CalendarClock, label: t('nav.smart_scheduling'), path: '/smart-scheduling', badge: pendingVaccinesCount },
       ]
     },
     {
       title: 'AI Intelligence',
       items: [
-        { icon: Brain, label: 'AI Health Intel', path: '/health-intel' },
-        { icon: Camera, label: 'AI Disease Scanner', path: '/disease-scanner' },
+        { icon: Brain, label: t('nav.health_intel'), path: '/health-intel' },
+        { icon: Camera, label: t('nav.disease_scanner'), path: '/disease-scanner' },
       ]
     },
     {
       title: 'Market & Automation',
       items: [
-        { icon: BarChart3, label: 'Business Analytics', path: '/business-analytics' },
-        { icon: ShoppingCart, label: 'Farm Marketplace', path: '/marketplace' },
-        { icon: Cpu, label: 'Smart Automation', path: '/smart-automation' },
+        { icon: BarChart3, label: t('nav.business_analytics'), path: '/business-analytics' },
+        { icon: ShoppingCart, label: t('nav.marketplace'), path: '/marketplace' },
+        { icon: Cpu, label: t('nav.automation'), path: '/smart-automation' },
       ]
     },
     {
       title: 'System',
       items: [
-        { icon: Settings, label: 'User & Farm Settings', path: '/settings' },
+        { icon: Settings, label: t('nav.settings'), path: '/settings' },
+        { icon: User, label: t('nav.about_founder', 'About Founder'), path: '/about-founder' },
       ]
     }
-  ], [unreadCount, alertsGrouped, pendingVaccinesCount])
+  ], [unreadCount, alertsGrouped, pendingVaccinesCount, t])
 
   // Filter groups by search query
   const filteredGroups = useMemo(() => {
@@ -112,12 +126,12 @@ export default function AppShell({ title, subtitle, actions, children }) {
 
   // Mobile Bottom Bar Navigation (5 key actions)
   const mobileNavItems = useMemo(() => [
-    { icon: House, label: 'Command', path: '/dashboard' },
-    { icon: Warehouse, label: 'Poultry', path: '/poultry-manager' },
-    { icon: Brain, label: 'AI Intel', path: '/health-intel' },
-    { icon: Camera, label: 'Scanner', path: '/disease-scanner' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-  ], [])
+    { icon: House, label: t('nav.dashboard').split(' ')[0], path: '/dashboard' },
+    { icon: Warehouse, label: t('nav.poultry_manager').split(' ')[0], path: '/poultry-manager' },
+    { icon: Brain, label: t('nav.health_intel').replace('AI ', ''), path: '/health-intel' },
+    { icon: Camera, label: t('nav.disease_scanner').split(' ').pop(), path: '/disease-scanner' },
+    { icon: Settings, label: t('nav.settings').split(' ').pop(), path: '/settings' },
+  ], [t])
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_30%),linear-gradient(135deg,#f8fafc,#ffffff,#ecfdf5)] text-surface-900 dark:bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.20),transparent_34%),linear-gradient(135deg,#020617,#052e16_48%,#0f172a)] dark:text-white transition-colors duration-300">
@@ -220,6 +234,63 @@ export default function AppShell({ title, subtitle, actions, children }) {
 
         {/* User Card & Logout Footer */}
         <div className="border-t border-surface-200/50 p-3 dark:border-white/5">
+          {/* Startup Badge & Mini Founder Card */}
+          <div className={cn('mb-3 rounded-xl border border-dashed border-emerald-500/35 bg-emerald-500/5 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/[0.02]', collapsed && 'px-2 py-3 text-center')}>
+            {!collapsed ? (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-450">
+                    AI Agritech Platform
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 dark:text-blue-400">
+                    Seed Stage
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/about-founder')}>
+                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-white bg-slate-100 shadow-md dark:border-slate-800 dark:bg-slate-900">
+                    <img 
+                      src="/founder.png" 
+                      alt="Sailada Prasant Kumar" 
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden h-full w-full items-center justify-center bg-gradient-to-br from-emerald-600 to-green-950 text-[10px] font-black text-white">
+                      SPK
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-black text-surface-900 dark:text-white">Sailada Prasant Kumar</p>
+                    <p className="truncate text-[10px] font-semibold text-emerald-650 dark:text-emerald-450">Founder & Developer</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => navigate('/about-founder')} title="Founder & Startup Vision">
+                <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-white bg-slate-100 shadow-md dark:border-slate-800 dark:bg-slate-900">
+                  <img 
+                    src="/founder.png" 
+                    alt="Sailada Prasant Kumar" 
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden h-full w-full items-center justify-center bg-gradient-to-br from-emerald-600 to-green-950 text-[10px] font-black text-white">
+                    SPK
+                  </div>
+                </div>
+                <span className="inline-flex rounded-full bg-emerald-500/10 px-1 py-0.5 text-[8px] font-black uppercase text-emerald-705 dark:text-emerald-450">
+                  Seed
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className={cn('mb-3 rounded-xl border border-emerald-200/70 bg-emerald-50/80 p-3 dark:border-emerald-400/15 dark:bg-emerald-400/10', collapsed && 'px-2')}>
             <div className={cn('flex items-center gap-3', collapsed && 'justify-center')}>
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-800 text-sm font-black text-white shadow-lg shadow-emerald-700/20">
@@ -277,6 +348,69 @@ export default function AppShell({ title, subtitle, actions, children }) {
           >
             {children}
           </motion.div>
+
+          {/* Global Premium Startup Footer */}
+          <footer className="mt-auto border-t border-surface-200/50 bg-white/40 pt-8 pb-6 backdrop-blur-md dark:border-white/5 dark:bg-slate-950/20 rounded-2xl p-6 sm:p-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              
+              {/* Col 1: Platform Info */}
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-800 text-xs font-black text-white shadow-md">
+                    PP
+                  </div>
+                  <span className="font-heading font-black text-surface-950 dark:text-white uppercase tracking-wider text-sm">PoultryPro OS</span>
+                </div>
+                <p className="text-xs font-semibold text-surface-550 dark:text-slate-400 leading-relaxed max-w-sm">
+                  A premium AI-powered smart poultry farming platform designed to solve operational bottlenecks for Indian farmers. Providing multilingual voice controls, real-time climate tracking, and computer-vision illness scanning.
+                </p>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Innovation for Rural India
+                </div>
+              </div>
+
+              {/* Col 2: Creator Branding */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-black text-surface-900 dark:text-white uppercase tracking-wider">Founder & Dev</h4>
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-surface-850 dark:text-slate-200">Sailada Prasant Kumar</p>
+                  <p className="text-[11px] font-semibold text-surface-500 dark:text-slate-400">B.Tech Student & AI Agritech Enthusiast</p>
+                  <button 
+                    onClick={() => navigate('/about-founder')}
+                    className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-650 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition"
+                  >
+                    View Founder Portfolio
+                    <ChevronLeft className="h-3 w-3 rotate-180" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Col 3: Quick Navigation */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-black text-surface-900 dark:text-white uppercase tracking-wider">Platform Links</h4>
+                <ul className="space-y-2 text-xs font-semibold text-surface-550 dark:text-slate-400">
+                  <li><button onClick={() => navigate('/dashboard')} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition">Command Center</button></li>
+                  <li><button onClick={() => navigate('/disease-scanner')} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition">Disease Scanner</button></li>
+                  <li><button onClick={() => navigate('/health-intel')} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition">AI Health Intel</button></li>
+                  <li><button onClick={() => navigate('/about-founder')} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition">About Founder</button></li>
+                </ul>
+              </div>
+
+            </div>
+
+            {/* Bottom Row */}
+            <div className="mt-8 pt-6 border-t border-surface-200/50 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-[10px] font-bold text-surface-500 dark:text-slate-500">
+                &copy; {new Date().getFullYear()} PoultryPro. All rights reserved.
+              </p>
+              <div className="flex items-center gap-4 text-xs font-semibold text-surface-500 dark:text-slate-500">
+                <span>Built by Sailada Prasant Kumar</span>
+                <span className="h-1 w-1 rounded-full bg-surface-300 dark:bg-white/10" />
+                <span>Founder of PoultryPro</span>
+              </div>
+            </div>
+          </footer>
         </main>
       </div>
 
@@ -303,6 +437,12 @@ export default function AppShell({ title, subtitle, actions, children }) {
           )
         })}
       </div>
+
+      {/* Global AI Chatbot Widget */}
+      <AIChatbotWidget />
+
+      {/* Global Farmer Onboarding setup */}
+      <FarmerOnboarding isOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
     </div>
   )
 }
