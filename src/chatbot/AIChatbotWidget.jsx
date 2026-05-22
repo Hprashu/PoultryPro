@@ -17,7 +17,7 @@ export default function AIChatbotWidget() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const dragControls = useDragControls();
-  const lang = i18n.language || 'en';
+  const lang = (i18n.language || 'en').split('-')[0].toLowerCase();
 
   // Toggle widget states
   const [isOpen, setIsOpen] = useState(false);
@@ -342,7 +342,7 @@ export default function AIChatbotWidget() {
   return (
     <>
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-20 right-6 z-50 lg:bottom-6">
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.95 }}
@@ -378,7 +378,7 @@ export default function AIChatbotWidget() {
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            className="fixed bottom-24 right-6 z-50 flex h-[620px] w-[390px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/60 bg-white/95 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-slate-950/95 overflow-hidden"
+            className="fixed bottom-36 lg:bottom-24 right-6 z-50 flex h-[620px] w-[390px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/60 bg-white/95 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-slate-950/95 overflow-hidden"
           >
             {/* Header bar */}
             <div 

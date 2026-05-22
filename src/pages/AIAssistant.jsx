@@ -21,7 +21,7 @@ export default function AIAssistant() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const location = useLocation();
-  const lang = i18n.language || 'en';
+  const lang = (i18n.language || 'en').split('-')[0].toLowerCase();
 
   // Toggle & mobile layout states
   const [activeMobileTab, setActiveMobileTab] = useState('chat'); // 'history', 'chat', 'telemetry'

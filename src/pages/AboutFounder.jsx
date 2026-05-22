@@ -186,7 +186,7 @@ export default function AboutFounder() {
                 {/* Image frame */}
                 <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white p-2.5 shadow-2xl dark:border-white/10 dark:bg-slate-900">
                   <img 
-                    src="/founder.png" 
+                    src="/founder.jpg" 
                     alt="Sailada Prasant Kumar" 
                     className="h-72 w-72 md:h-80 md:w-80 rounded-2xl object-cover transition-transform duration-500 group-hover:scale-102"
                     onError={(e) => {
@@ -492,10 +492,10 @@ export default function AboutFounder() {
                 <div className="flex items-center justify-between p-2.5 rounded-xl border border-surface-200/50 bg-white/50 dark:border-white/5 dark:bg-white/[0.02] text-xs">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-emerald-500" />
-                    <span className="font-bold text-surface-800 dark:text-slate-300">spk@poultrypro.ai</span>
+                    <span className="font-bold text-surface-800 dark:text-slate-300">sailadaprasantkumar767@gmail.com</span>
                   </div>
                   <button
-                    onClick={() => handleCopy('spk@poultrypro.ai', 'Email')}
+                    onClick={() => handleCopy('sailadaprasantkumar767@gmail.com', 'Email')}
                     className="p-1.5 rounded-lg bg-surface-150 hover:bg-surface-200 dark:bg-white/5 dark:hover:bg-white/10 text-surface-600 dark:text-slate-400 transition"
                     title="Copy Email"
                   >
@@ -544,7 +544,7 @@ export default function AboutFounder() {
 
               {/* LinkedIn Card */}
               <a 
-                href="https://linkedin.com" 
+                href="https://www.linkedin.com/in/sailada-prasant-kumar" 
                 target="_blank" 
                 rel="noreferrer"
                 className="group p-5 rounded-2xl border border-surface-200 bg-white shadow-md hover:border-emerald-500 transition-all dark:border-white/5 dark:bg-slate-900/60 dark:hover:border-emerald-500 flex flex-col justify-between h-36"

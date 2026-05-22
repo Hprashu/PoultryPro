@@ -254,7 +254,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
                 <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/about-founder')}>
                   <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-white bg-slate-100 shadow-md dark:border-slate-800 dark:bg-slate-900">
                     <img 
-                      src="/founder.png" 
+                      src="/founder.jpg" 
                       alt="Sailada Prasant Kumar" 
                       className="h-full w-full object-cover"
                       onError={(e) => {
@@ -276,7 +276,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
               <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => navigate('/about-founder')} title="Founder & Startup Vision">
                 <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-white bg-slate-100 shadow-md dark:border-slate-800 dark:bg-slate-900">
                   <img 
-                    src="/founder.png" 
+                    src="/founder.jpg" 
                     alt="Sailada Prasant Kumar" 
                     className="h-full w-full object-cover"
                     onError={(e) => {

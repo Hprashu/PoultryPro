@@ -11,7 +11,8 @@ const LANGUAGE_LOCALE_MAP = {
 };
 
 export const getLocaleCode = (langCode) => {
-  return LANGUAGE_LOCALE_MAP[langCode] || 'en-IN';
+  const baseCode = (langCode || 'en').split(/[-_]/)[0].toLowerCase();
+  return LANGUAGE_LOCALE_MAP[baseCode] || 'en-IN';
 };
 
 // Text-to-Speech (Speech Synthesis)
@@ -26,6 +27,7 @@ export const speakText = (text, langCode = 'en', options = {}) => {
     window.speechSynthesis.cancel();
 
     const locale = getLocaleCode(langCode);
+    const baseTarget = (langCode || 'en').split(/[-_]/)[0].toLowerCase();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = locale;
     
@@ -36,12 +38,19 @@ export const speakText = (text, langCode = 'en', options = {}) => {
 
     // Try to find a matching voice in the browser
     const voices = window.speechSynthesis.getVoices();
-    // Search for a voice matching the target locale (e.g. te-IN)
-    let selectedVoice = voices.find(voice => voice.lang === locale || voice.lang.startsWith(locale));
     
-    // If not found, try to find a voice matching the base language (e.g. hi)
+    // 1. Search for a voice matching the target locale (e.g. te-IN)
+    let selectedVoice = voices.find(voice => {
+      const vLang = voice.lang.replace('_', '-');
+      return vLang === locale || vLang.startsWith(locale);
+    });
+    
+    // 2. If not found, try to find a voice matching the base language (e.g. te or hi)
     if (!selectedVoice) {
-      selectedVoice = voices.find(voice => voice.lang.startsWith(langCode));
+      selectedVoice = voices.find(voice => {
+        const vBase = voice.lang.split(/[-_]/)[0].toLowerCase();
+        return vBase === baseTarget;
+      });
     }
     
     if (selectedVoice) {
