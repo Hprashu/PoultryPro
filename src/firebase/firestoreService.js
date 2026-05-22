@@ -26,6 +26,10 @@ export const COLLECTIONS = {
   revenue: 'revenue',
   images: 'images',
   healthLogs: 'healthLogs',
+  userPreferences: 'userPreferences',
+  voiceHistory: 'voiceHistory',
+  chatSessions: 'chatSessions',
+  chatHistory: 'chatHistory',
 }
 
 /* ─── Generic CRUD helpers ─── */

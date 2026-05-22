@@ -16,7 +16,8 @@ import {
   Warehouse,
   TrendingUp,
   Volume2,
-  Rocket
+  Rocket,
+  Sparkles
 } from 'lucide-react'
 import {
   Area,
@@ -44,6 +45,9 @@ import useRealtimePoultry from '../hooks/useRealtimePoultry.js'
 import { useVoice } from '../hooks/useVoice'
 import { cn, formatCompactNumber } from '../lib/ui'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { doc, getDoc } from 'firebase/firestore'
+import { db, COLLECTIONS } from '../firebase'
+import useNotifications from '../hooks/useNotifications.js'
 
 const MOCK_RECORDS = [
   { id: 'mock-1', breed: 'Leghorn', birdCount: 250, birdAge: 45, birdWeight: 1.8, feedType: 'Layer Mash', vaccinationStatus: 'Up to Date' },
@@ -59,6 +63,16 @@ const tooltipStyle = {
   borderRadius: 8,
   boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
   background: 'rgba(255,255,255,0.96)',
+}
+
+const GREETINGS = {
+  en: "Welcome to the Command Center",
+  te: "కమాండ్ సెంటర్‌కు స్వాగతం",
+  hi: "कमांड सेंटर में आपका स्वागत है",
+  ta: "கட்டளை மையத்திற்கு வரவேற்கிறோம்",
+  kn: "ಕಮಾಂಡ್ ಸೆಂಟರ್‌ಗೆ ಸುಸ್ವಾಗತ",
+  mr: "कमांड सेंटरमध्ये आपले स्वागत आहे",
+  bn: "কমান্ড সেন্টারে আপনাকে স্বাগত"
 }
 
 function EmptyChart({ label }) {
@@ -88,6 +102,107 @@ export default function Dashboard() {
   const { speak, isSpeaking, cancelSpeak } = useVoice()
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Sailada Prasant Kumar'
+
+  const { addNotification } = useNotifications()
+  const [ambientTemp, setAmbientTemp] = useState(23.8)
+  const [ambientHumidity, setAmbientHumidity] = useState(64.2)
+  const [ambientAmmonia, setAmbientAmmonia] = useState(12.0)
+
+  const [thresholds, setThresholds] = useState({
+    tempMin: 18.0,
+    tempMax: 32.0,
+    ammoniaAlert: 15.0
+  })
+
+  // Load alert limits from Firestore userPreferences on mount
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+    async function fetchPreferences() {
+      try {
+        const docRef = doc(db, COLLECTIONS.userPreferences, user.uid)
+        const docSnap = await getDoc(docRef)
+        if (docSnap.exists() && active) {
+          const data = docSnap.data()
+          if (data.alerts) {
+            setThresholds({
+              tempMin: Number(data.alerts.tempMin) ?? 18.0,
+              tempMax: Number(data.alerts.tempMax) ?? 32.0,
+              ammoniaAlert: Number(data.alerts.ammoniaAlert) ?? 15.0
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching preferences on dashboard:', err)
+      }
+    }
+    fetchPreferences()
+    return () => {
+      active = false
+    }
+  }, [user?.uid])
+
+  // Simulated ambient climate changes & alerts
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // Fluctuating values slightly
+      // 10% chance to cause an alert violation to showcase alert updates
+      const shouldBreach = Math.random() < 0.10
+      
+      let nextTemp = 23.8
+      let nextAmmonia = 12.0
+      
+      if (shouldBreach) {
+        const breachType = Math.random() < 0.5 ? 'temp' : 'ammonia'
+        if (breachType === 'temp') {
+          nextTemp = Math.random() < 0.5 ? (thresholds.tempMin - 1.5) : (thresholds.tempMax + 1.5)
+        } else {
+          nextAmmonia = thresholds.ammoniaAlert + 2.5
+        }
+      } else {
+        nextTemp = thresholds.tempMin + 2 + Math.random() * (thresholds.tempMax - thresholds.tempMin - 4)
+        nextAmmonia = Math.random() * (thresholds.ammoniaAlert - 2)
+      }
+      
+      const nextHumidity = 55 + Math.random() * 15
+      
+      const tempVal = parseFloat(nextTemp.toFixed(1))
+      const humidityVal = parseFloat(nextHumidity.toFixed(1))
+      const ammoniaVal = parseFloat(nextAmmonia.toFixed(1))
+
+      setAmbientTemp(tempVal)
+      setAmbientHumidity(humidityVal)
+      setAmbientAmmonia(ammoniaVal)
+      
+      // Trigger notifications for breaches
+      if (tempVal < thresholds.tempMin) {
+        addNotification({
+          title: 'Critical Temperature Drop',
+          detail: `Ambient temperature fell to ${tempVal}°C (min limit is ${thresholds.tempMin}°C). Check brooder heating immediately.`,
+          type: 'critical',
+          category: 'Environment'
+        })
+      } else if (tempVal > thresholds.tempMax) {
+        addNotification({
+          title: 'Critical Temperature Spike',
+          detail: `Ambient temperature rose to ${tempVal}°C (max limit is ${thresholds.tempMax}°C). Turn on exhaust cooling pads immediately.`,
+          type: 'critical',
+          category: 'Environment'
+        })
+      }
+      
+      if (ammoniaVal > thresholds.ammoniaAlert) {
+        addNotification({
+          title: 'High Ammonia Concentration',
+          detail: `Ammonia level at ${ammoniaVal} ppm exceeds safe threshold of ${thresholds.ammoniaAlert} ppm. Vent poultry house.`,
+          type: 'warning',
+          category: 'Environment'
+        })
+      }
+    }, 30000) // 30 second polling simulation
+    
+    return () => clearInterval(timer)
+  }, [thresholds, addNotification])
 
   useEffect(() => {
     if (!loading) {
@@ -467,7 +582,7 @@ export default function Dashboard() {
               <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_240px] lg:items-end">
                 <div>
                   <h2 className="font-heading text-2xl font-black tracking-tight text-surface-950 dark:text-white sm:text-3xl leading-tight">
-                    Welcome to the Command Center, {displayName === 'Farmer' ? 'Sailada Prasant Kumar' : displayName}!
+                    {GREETINGS[i18n.language] || GREETINGS.en}, {displayName === 'Farmer' ? 'Sailada Prasant Kumar' : displayName}!
                   </h2>
                   <p className="mt-3 max-w-3xl text-sm leading-relaxed text-surface-650 dark:text-slate-350 font-semibold">
                     PoultryPro OS is running in startup founder mode. Oversee real-time telemetry, biosecurity compliance, and your regional voice assistant deployments from this investor-ready operational console.
@@ -691,15 +806,37 @@ export default function Dashboard() {
             </AnalyticsCard>
           </section>
 
-          {/* Row 3: Barn Climate, AI Alerts/Insights, Breed Mix */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Row 3: Barn Climate, AI Alerts/Insights, Breed Mix, AI Voice Companion */}
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Barn Climate Environment Snapshot */}
             <AnalyticsCard title="Barn Climate Snapshot" subtitle="Operational biosecurity metrics" icon={ThermometerSun}>
               <div className="space-y-3.5">
                 {[
-                  { label: 'Ambient Temperature', value: '23.8 °C', status: 'Optimal range', icon: ThermometerSun, color: 'text-sky-600 bg-sky-50 dark:text-sky-200 dark:bg-sky-400/10' },
-                  { label: 'Rel. Ambient Humidity', value: '64.2%', status: 'Standard range', icon: Activity, color: 'text-cyan-600 bg-cyan-50 dark:text-cyan-200 dark:bg-cyan-400/10' },
-                  { label: 'Biosafety Level (AQI)', value: 'AQI 42', status: 'Excellent ventilation', icon: ShieldCheck, color: 'text-emerald-700 bg-emerald-50 dark:text-emerald-200 dark:bg-emerald-400/10' },
+                  { 
+                    label: 'Ambient Temperature', 
+                    value: `${ambientTemp} °C`, 
+                    status: ambientTemp < thresholds.tempMin ? `Too Cold (Min: ${thresholds.tempMin}°C)` : ambientTemp > thresholds.tempMax ? `Too Hot (Max: ${thresholds.tempMax}°C)` : 'Optimal range', 
+                    icon: ThermometerSun, 
+                    color: ambientTemp < thresholds.tempMin || ambientTemp > thresholds.tempMax 
+                      ? 'text-red-650 bg-red-50 dark:text-red-200 dark:bg-red-400/10' 
+                      : 'text-sky-600 bg-sky-50 dark:text-sky-200 dark:bg-sky-400/10' 
+                  },
+                  { 
+                    label: 'Rel. Ambient Humidity', 
+                    value: `${ambientHumidity}%`, 
+                    status: 'Standard range', 
+                    icon: Activity, 
+                    color: 'text-cyan-600 bg-cyan-50 dark:text-cyan-200 dark:bg-cyan-400/10' 
+                  },
+                  { 
+                    label: 'Ammonia Concentration', 
+                    value: `${ambientAmmonia} ppm`, 
+                    status: ambientAmmonia > thresholds.ammoniaAlert ? `High Level (Max: ${thresholds.ammoniaAlert} ppm)` : 'Safe ventilation', 
+                    icon: ShieldCheck, 
+                    color: ambientAmmonia > thresholds.ammoniaAlert
+                      ? 'text-amber-655 bg-amber-50 dark:text-amber-200 dark:bg-amber-400/10'
+                      : 'text-emerald-700 bg-emerald-50 dark:text-emerald-200 dark:bg-emerald-400/10' 
+                  },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3.5 rounded-xl border border-surface-200/70 bg-white/70 p-3.5 dark:border-white/10 dark:bg-white/5">
                     <div className={cn('grid h-10 w-10 place-items-center rounded-lg shadow-sm', item.color)}>
@@ -707,9 +844,9 @@ export default function Dashboard() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-black text-surface-900 dark:text-white">{item.label}</p>
-                      <p className="text-[11px] font-semibold text-surface-500 dark:text-slate-400">{item.status}</p>
+                      <p className="text-[11px] font-semibold text-surface-555 dark:text-slate-400 leading-normal">{item.status}</p>
                     </div>
-                    <p className="font-heading text-lg font-black text-surface-950 dark:text-white">{item.value}</p>
+                    <p className="font-heading text-sm font-black text-surface-950 dark:text-white whitespace-nowrap">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -717,7 +854,7 @@ export default function Dashboard() {
 
             {/* AI Insights & Alerts Panel */}
             <AnalyticsCard title={t('dashboard.active_alerts')} subtitle="Prioritized flock alerts & updates" icon={Brain}>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                 {insights.map((insight, index) => (
                   <AlertCard key={insight.id} {...insight} delay={index * 0.06} />
                 ))}
@@ -725,15 +862,15 @@ export default function Dashboard() {
             </AnalyticsCard>
 
             {/* Breed Mix Progression */}
-            <AnalyticsCard title="Breed Population Share" subtitle="Largest populations by active breed" icon={Egg}>
+            <AnalyticsCard title="Breed Population Share" subtitle="Largest populations by breed" icon={Egg}>
               <div className="space-y-3.5">
                 {breedData.length ? breedData.map((item, index) => {
                   const max = Math.max(...breedData.map((breed) => breed.count), 1)
                   return (
                     <div key={item.breed} className="space-y-2">
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="font-black text-surface-700 dark:text-slate-200">{item.breed}</span>
-                        <span className="font-black text-surface-950 dark:text-white">{formatCompactNumber(item.count)} birds</span>
+                        <span className="font-black text-surface-700 dark:text-slate-200 truncate">{item.breed}</span>
+                        <span className="font-black text-surface-950 dark:text-white shrink-0">{formatCompactNumber(item.count)} birds</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-surface-100 dark:bg-white/10">
                         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(item.count / max) * 100}%`, background: palette[index % palette.length] }} />
@@ -741,6 +878,58 @@ export default function Dashboard() {
                     </div>
                   )
                 }) : <EmptyChart label="No active breed mix data logs" />}
+              </div>
+            </AnalyticsCard>
+
+            {/* AI Voice Companion Card */}
+            <AnalyticsCard 
+              title="AI Voice Companion" 
+              subtitle="Quick voice assistant access" 
+              icon={Volume2}
+            >
+              <div className="flex flex-col h-full justify-between gap-4">
+                <div className="rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 p-3 text-center dark:border-emerald-500/20">
+                  <p className="text-xs font-black text-emerald-800 dark:text-emerald-450 uppercase tracking-wide">
+                    Talk to PoultryPro AI
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold text-surface-550 dark:text-slate-400 leading-normal">
+                    Get answers about vaccinations, sickness, and environment in your regional language.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => navigate('/voice-assistant')}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-green-700 py-3 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-emerald-600/35"
+                >
+                  <Volume2 className="h-4 w-4 animate-bounce" />
+                  Launch Voice Assistant
+                </button>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-surface-450 dark:text-slate-500">
+                    Quick Search Templates:
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { label: 'Sickness', q: 'sick', color: 'hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 border-red-200/50' },
+                      { label: 'Vaccines', q: 'vaccine', color: 'hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400 border-emerald-200/50' },
+                      { label: 'Feed/Water', q: 'feed', color: 'hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-500/10 dark:hover:text-amber-400 border-amber-200/50' },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => navigate(`/ai-assistant?q=${item.q}`)}
+                        className={cn(
+                          "rounded-lg border border-surface-200 bg-white/70 py-2 text-center text-[9px] font-black text-surface-700 transition dark:border-white/5 dark:bg-white/2 dark:text-slate-350",
+                          item.color
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </AnalyticsCard>
           </section>

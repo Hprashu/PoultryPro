@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   User,
   Building,
@@ -20,6 +20,8 @@ import {
   Play,
   Square
 } from 'lucide-react'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { db, COLLECTIONS } from '../firebase'
 import { useTranslation } from 'react-i18next'
 import AppShell from '../components/ui/AppShell.jsx'
 import { useToast } from '../contexts/ToastContext.jsx'
@@ -71,6 +73,60 @@ export default function Settings() {
     return parseFloat(localStorage.getItem('poultrypro-speech-volume')) || 1.0
   })
   const [isTestSpeaking, setIsTestSpeaking] = useState(false)
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
+
+  // Load preferences from Firestore on mount
+  useEffect(() => {
+    if (!user?.uid) return
+
+    async function loadPreferences() {
+      try {
+        const docRef = doc(db, COLLECTIONS.userPreferences, user.uid)
+        const docSnap = await getDoc(docRef)
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data()
+          if (data.profile) setProfileForm((prev) => ({ ...prev, ...data.profile }))
+          if (data.farm) setFarmForm((prev) => ({ ...prev, ...data.farm }))
+          if (data.alerts) setAlertConfig((prev) => ({ ...prev, ...data.alerts }))
+          if (data.speech) {
+            if (data.speech.rate !== undefined) setSpeechRate(data.speech.rate)
+            if (data.speech.volume !== undefined) setSpeechVolume(data.speech.volume)
+          }
+          if (data.language) {
+            i18n.changeLanguage(data.language)
+          }
+        }
+      } catch (err) {
+        console.error('Error loading preferences from Firestore:', err)
+      } finally {
+        setLoadingPrefs(false)
+      }
+    }
+
+    loadPreferences()
+  }, [user?.uid])
+
+  // Save specific preferences section to Firestore
+  const savePreferencesToCloud = async (section, data) => {
+    if (!user?.uid) return
+    try {
+      const docRef = doc(db, COLLECTIONS.userPreferences, user.uid)
+      const docSnap = await getDoc(docRef)
+      const existingData = docSnap.exists() ? docSnap.data() : {}
+      
+      const updatedPayload = {
+        ...existingData,
+        [section]: data,
+        updatedAt: new Date().toISOString(),
+      }
+      
+      await setDoc(docRef, updatedPayload, { merge: true })
+    } catch (err) {
+      console.error('Error saving preferences to Firestore:', err)
+      showToast('Offline fallback: settings saved locally only.', 'info')
+    }
+  }
 
   const languages = [
     { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -82,9 +138,10 @@ export default function Settings() {
     { code: 'bn', label: 'বাংলা', flag: '🇮🇳' }
   ]
 
-  const changeLanguage = (code) => {
+  const changeLanguage = async (code) => {
     i18n.changeLanguage(code)
     localStorage.setItem('poultrypro-language', code)
+    await savePreferencesToCloud('language', code)
     showToast(t('settings.settings_saved', 'Language updated successfully!'), 'success')
   }
 
@@ -110,25 +167,29 @@ export default function Settings() {
     }
   }
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault()
+    await savePreferencesToCloud('profile', profileForm)
     showToast(t('settings.profile_saved', 'Profile settings updated successfully!'), 'success')
   }
 
-  const handleSaveFarm = (e) => {
+  const handleSaveFarm = async (e) => {
     e.preventDefault()
+    await savePreferencesToCloud('farm', farmForm)
     showToast(t('settings.farm_saved', 'Farm configuration synced to cloud database.'), 'success')
   }
 
-  const handleSaveAlerts = (e) => {
+  const handleSaveAlerts = async (e) => {
     e.preventDefault()
+    await savePreferencesToCloud('alerts', alertConfig)
     showToast(t('settings.alerts_saved', 'Alarm thresholds and communication settings saved.'), 'success')
   }
 
-  const handleSaveSpeech = (e) => {
+  const handleSaveSpeech = async (e) => {
     e.preventDefault()
     localStorage.setItem('poultrypro-speech-rate', speechRate.toString())
     localStorage.setItem('poultrypro-speech-volume', speechVolume.toString())
+    await savePreferencesToCloud('speech', { rate: speechRate, volume: speechVolume })
     showToast(t('settings.settings_saved', 'Settings saved successfully!'), 'success')
   }
 

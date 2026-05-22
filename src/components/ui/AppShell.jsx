@@ -20,6 +20,8 @@ import {
   ShieldCheck,
   Search,
   User,
+  Bell,
+  Sparkles,
 } from 'lucide-react'
 import { auth, signOut } from '../../firebase'
 import { useAuth } from '../../contexts/AuthContext.jsx'
@@ -93,6 +95,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
       title: 'AI Intelligence',
       items: [
         { icon: Brain, label: t('nav.health_intel'), path: '/health-intel' },
+        { icon: Sparkles, label: t('nav.ai_assistant', 'AI Voice Assistant'), path: '/ai-assistant' },
         { icon: Camera, label: t('nav.disease_scanner'), path: '/disease-scanner' },
       ]
     },
@@ -107,6 +110,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
     {
       title: 'System',
       items: [
+        { icon: Bell, label: t('nav.notifications', 'Notifications'), path: '/notifications', badge: unreadCount },
         { icon: Settings, label: t('nav.settings'), path: '/settings' },
         { icon: User, label: t('nav.about_founder', 'About Founder'), path: '/about-founder' },
       ]
@@ -439,7 +443,9 @@ export default function AppShell({ title, subtitle, actions, children }) {
       </div>
 
       {/* Global AI Chatbot Widget */}
-      <AIChatbotWidget />
+      {location.pathname !== '/ai-assistant' && location.pathname !== '/voice-assistant' && (
+        <AIChatbotWidget />
+      )}
 
       {/* Global Farmer Onboarding setup */}
       <FarmerOnboarding isOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />

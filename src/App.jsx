@@ -22,6 +22,8 @@ const Settings = React.lazy(() => import('./pages/Settings.jsx'))
 const FeedInventory = React.lazy(() => import('./pages/FeedInventory.jsx'))
 const ImageGallery = React.lazy(() => import('./pages/ImageGallery.jsx'))
 const AboutFounder = React.lazy(() => import('./pages/AboutFounder.jsx'))
+const AIAssistant = React.lazy(() => import('./pages/AIAssistant.jsx'))
+const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage.jsx'))
 
 // Sleek agritech loader fallback
 function LoadingScreen() {
@@ -69,6 +71,9 @@ export default function App() {
                   <Route path="/marketplace" element={<ProtectedRoute><FarmMarketplace /></ProtectedRoute>} />
                   <Route path="/disease-scanner" element={<ProtectedRoute><AIDiseaseScanner /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                  <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
+                  <Route path="/voice-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
+                  <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
                   
                   {/* Standalone feed log (retains route functionality) */}
                   <Route path="/feed" element={<ProtectedRoute><FeedInventory /></ProtectedRoute>} />

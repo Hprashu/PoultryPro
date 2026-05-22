@@ -78,12 +78,24 @@ export function useVoice() {
     };
   }, [langCode, isSupported]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!isSupported) {
       setError('speech_not_supported');
       return;
     }
     if (recognizerRef.current && !isListening) {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
+        }
+      } catch (err) {
+        console.error('Microphone access request denied:', err);
+        setError('not-allowed');
+        setIsListening(false);
+        return;
+      }
+
       try {
         setIsListening(true);
         recognizerRef.current.start();
